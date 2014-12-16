@@ -9,11 +9,9 @@ install: all
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	mkdir -p $(DESTDIR)$(PREFIX)/etc
 	install -m 755 crond $(DESTDIR)$(PREFIX)/bin/
-	install -m 644 crontab $(DESTDIR)$(PREFIX)/etc/
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/crond
-	rm $(DESTDIR)$(PREFIX)/etc/crontab
 
 clean:
 	rm -f crond
