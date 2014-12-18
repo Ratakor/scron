@@ -7,11 +7,13 @@ all: crond
 
 install: all
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	mkdir -p $(DESTDIR)$(PREFIX)/etc
-	install -m 755 crond $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 crond $(DESTDIR)$(PREFIX)/bin
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/crond
 
 clean:
 	rm -f crond
+
+.PHONY:
+	all install uninstall clean
