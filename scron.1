@@ -1,0 +1,42 @@
+.Dd Jan 29, 2015
+.Dt SCRON 1
+.Os
+.Sh NAME
+.Nm scron
+.Nd clock daemon
+.Sh SYNOPSIS
+.Nm cron
+.Op Fl f Ar file
+.Op Fl n
+.Sh DESCRIPTION
+.Nm
+schedules commands to be run at specified dates and times.
+.Pp
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl f Ar file
+Use the specified
+.Ar file
+instead of the default
+.Ar /etc/crontab .
+.It Fl n
+Do not daemonize.
+.El
+.Sh CONFIGURATION
+Configuration is done by editing the crontab file.
+
+columns:
+ minute, hour, day of month, month, day of week, command
+
+syntax:
+ value: * (wildcard), 30 (number), */N (repeat), or 1-5 (range)
+ separator: \\t (tab)
+.Sh EXAMPLE
+ # Run updatedb 6:00 every day
+ 0	6	*	*	*	updatedb
+
+ # 5:30 every weekday. Log output to /var/log/backup.log.
+ 30	5	*	*	1-5	syncbackup &>> /var/log/backup.log
+
+ # Run as user postmaster 5:00 every third day of month.
+ 0	5	*	*/3	*	su -c 'mail -s “Hello world” a@b.com' postmaster
