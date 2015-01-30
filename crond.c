@@ -334,6 +334,19 @@ loadentries(void)
 	int r = 0, y;
 	size_t size = 0;
 	ssize_t len;
+	int i, nflim;
+	struct field *f;
+	struct fieldlimits {
+		char *name;
+		long min;
+		long max;
+	} flim[] = {
+		{ "min", 0, 59 },
+		{ "hour", 0, 23 },
+		{ "mday", 1, 31 },
+		{ "mon", 1, 12 },
+		{ "wday", 0, 6 }
+	};
 
 	if ((fp = fopen(config, "r")) == NULL) {
 		logerr("error: can't open %s: %s\n", config, strerror(errno));
@@ -347,50 +360,24 @@ loadentries(void)
 
 		cte = emalloc(sizeof(*cte));
 
-		col = strsep(&p, "\t");
-		if (!col || parsefield(col, 0, 59, &cte->min) < 0) {
-			logerr("error: failed to parse `min' field on line %d\n",
-			       y + 1);
-			free(cte);
-			r = -1;
-			break;
+		f = &cte->min;
+		nflim = LEN(flim);
+		for (i = 0; i < nflim; i++) {
+			do
+				col = strsep(&p, "\t ");
+			while (col[0] == '\0');
+
+			if (!col || parsefield(col, flim[i].min, flim[i].max, f++) < 0) {
+				logerr("error: failed to parse `%s' field on line %d\n",
+						flim[i].name, y + 1);
+				free(cte);
+				r = -1;
+				break;
+			}
 		}
 
-		col = strsep(&p, "\t");
-		if (!col || parsefield(col, 0, 23, &cte->hour) < 0) {
-			logerr("error: failed to parse `hour' field on line %d\n",
-			       y + 1);
-			free(cte);
-			r = -1;
+		if (r == -1)
 			break;
-		}
-
-		col = strsep(&p, "\t");
-		if (!col || parsefield(col, 1, 31, &cte->mday) < 0) {
-			logerr("error: failed to parse `mday' field on line %d\n",
-			       y + 1);
-			free(cte);
-			r = -1;
-			break;
-		}
-
-		col = strsep(&p, "\t");
-		if (!col || parsefield(col, 1, 12, &cte->mon) < 0) {
-			logerr("error: failed to parse `mon' field on line %d\n",
-			       y + 1);
-			free(cte);
-			r = -1;
-			break;
-		}
-
-		col = strsep(&p, "\t");
-		if (!col || parsefield(col, 0, 6, &cte->wday) < 0) {
-			logerr("error: failed to parse `wday' field on line %d\n",
-			       y + 1);
-			free(cte);
-			r = -1;
-			break;
-		}
 
 		col = strsep(&p, "\n");
 		if (!col) {

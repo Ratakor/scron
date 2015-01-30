@@ -16,9 +16,11 @@ Configuration
 Columns:
  minute, hour, day of month, month, day of week, command
 
-Syntax:
- Value: * (wildcard), 30 (number), */N (repeat), or 1-5 (range)
- Separator: \t (tab)
+Separator:
+ Any number of tabs or spaces.
+
+Value:
+ * (wildcard), 30 (number), */N (repeat), or 1-5 (range)
 
 Example of crontab file:
  # Run updatedb at 6:00 every day

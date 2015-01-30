@@ -1,4 +1,4 @@
-.Dd Jan 29, 2015
+.Dd Jan 30, 2015
 .Dt SCRON 1
 .Os
 .Sh NAME
@@ -28,9 +28,11 @@ Configuration is done by editing the crontab file.
 Columns:
  minute, hour, day of month, month, day of week, command
 
-Syntax:
- Value: * (wildcard), 30 (number), */N (repeat), or 1-5 (range)
- Separator: \\t (tab)
+Separator:
+ Any number of tabs or spaces.
+
+Value:
+ * (wildcard), 30 (number), */N (repeat), or 1-5 (range)
 .Sh EXAMPLE
 Example of crontab file:
  # Run updatedb at 6:00 every day
