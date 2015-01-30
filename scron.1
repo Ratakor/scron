@@ -5,7 +5,7 @@
 .Nm scron
 .Nd clock daemon
 .Sh SYNOPSIS
-.Nm cron
+.Nm
 .Op Fl f Ar file
 .Op Fl n
 .Sh DESCRIPTION
@@ -25,18 +25,19 @@ Do not daemonize.
 .Sh CONFIGURATION
 Configuration is done by editing the crontab file.
 
-columns:
+Columns:
  minute, hour, day of month, month, day of week, command
 
-syntax:
- value: * (wildcard), 30 (number), */N (repeat), or 1-5 (range)
- separator: \\t (tab)
+Syntax:
+ Value: * (wildcard), 30 (number), */N (repeat), or 1-5 (range)
+ Separator: \\t (tab)
 .Sh EXAMPLE
- # Run updatedb 6:00 every day
+Example of crontab file:
+ # Run updatedb at 6:00 every day
  0	6	*	*	*	updatedb
 
- # 5:30 every weekday. Log output to /var/log/backup.log.
+ # Run at 5:30 every business day. Log output to /var/log/backup.log.
  30	5	*	*	1-5	syncbackup &>> /var/log/backup.log
 
- # Run as user postmaster 5:00 every third day of month.
- 0	5	*	*/3	*	su -c 'mail -s “Hello world” a@b.com' postmaster
+ # Run as user postmaster at 5:00 every third day of month.
+ 0	5	*/3	*	*	su -c 'mail -s "Hello world" a@b.com' postmaster
