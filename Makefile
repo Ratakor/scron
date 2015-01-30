@@ -1,23 +1,24 @@
-CC = gcc # x86_64-linux-musl-gcc
-CFLAGS = -Os -std=c99 -Wall -Wextra -pedantic -D_POSIX_C_SOURCE=200809L -D_BSD_SOURCE
-LDFLAGS = -s # -static
+CFLAGS += -std=c99 -Wall -Wextra -pedantic -D_POSIX_C_SOURCE=200809L -D_BSD_SOURCE
 PREFIX = /usr/local
 MANPREFIX = $(PREFIX)/man
 
-all: crond
+BIN = crond
+MAN = scron.1
+
+all: $(BIN)
 
 install: all
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	cp -f crond $(DESTDIR)$(PREFIX)/bin
+	cp -f $(BIN) $(DESTDIR)$(PREFIX)/bin
 	mkdir -p $(DESTDIR)$(MANPREFIX)/man1
-	cp -f scron.1 $(DESTDIR)$(MANPREFIX)/man1
+	cp -f $(MAN) $(DESTDIR)$(MANPREFIX)/man1
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/crond
-	rm -f $(DESTDIR)$(MANPREFIX)/man1/scron.1
+	rm -f $(DESTDIR)$(PREFIX)/bin/$(BIN)
+	rm -f $(DESTDIR)$(MANPREFIX)/man1/$(MAN)
 
 clean:
-	rm -f crond
+	rm -f $(BIN)
 
 .PHONY:
 	all install uninstall clean
