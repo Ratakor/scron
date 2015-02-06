@@ -22,11 +22,11 @@
 #define LEN(x) (sizeof (x) / sizeof *(x))
 
 enum fieldtype {
-	error,
-	wildcard,
-	number,
-	range,
-	step
+	ERROR,
+	WILDCARD,
+	NUMBER,
+	RANGE,
+	STEP
 };
 
 struct field {
@@ -239,18 +239,18 @@ matchentry(struct ctabentry *cte, struct tm *tm)
 
 	for (i = 0; i < LEN(matchtbl); i++) {
 		switch (matchtbl[i].f->type) {
-		case wildcard:
+		case WILDCARD:
 			continue;
-		case number:
+		case NUMBER:
 			if (matchtbl[i].f->val[0] == matchtbl[i].tm)
 				continue;
 			break;
-		case range:
+		case RANGE:
 			if (matchtbl[i].f->val[0] <= matchtbl[i].tm)
 				if (matchtbl[i].f->val[1] >= matchtbl[i].tm)
 					continue;
 			break;
-		case step:
+		case STEP:
 			if (matchtbl[i].tm > 0) {
 				if (matchtbl[i].tm % matchtbl[i].f->val[0] == 0)
 					continue;
@@ -269,31 +269,33 @@ matchentry(struct ctabentry *cte, struct tm *tm)
 	return 1;
 }
 
-enum fieldtype getfieldtype(const char *field) {
+static enum fieldtype
+getfieldtype(const char *field)
+{
 	const char *p;
 
 	if (strcmp(field, "*") == 0)
-		return wildcard;
+		return WILDCARD;
 
 	p = field;
 	while (isdigit(*p))
 		p++;
 	if (*p == '\0')
-		return number;
+		return NUMBER;
 
 	p = field;
 	while (isdigit(*p) || *p == '-')
 		p++;
 	if (*p == '\0')
-		return range;
+		return RANGE;
 
 	p = field;
 	while (isdigit(*p) || *p == '*' || *p == '/')
 		p++;
 	if (*p == '\0')
-		return step;
+		return STEP;
 
-	return error;
+	return ERROR;
 }
 
 static int
@@ -301,12 +303,12 @@ parsefield(const char *field, long low, long high, struct field *f)
 {
 	char *e1, *e2;
 
-	f->type = error;
+	f->type = ERROR;
 	switch (getfieldtype(field)) {
-	case wildcard:
-		f->type = wildcard;
+	case WILDCARD:
+		f->type = WILDCARD;
 		break;
-	case number:
+	case NUMBER:
 		f->val = emalloc(sizeof(*f->val));
 		errno = 0;
 		f->val[0] = strtol(field, &e1, 10);
@@ -314,9 +316,9 @@ parsefield(const char *field, long low, long high, struct field *f)
 			break;
 		if (f->val[0] < low || f->val[0] > high)
 			break;
-		f->type = number;
+		f->type = NUMBER;
 		break;
-	case range:
+	case RANGE:
 		f->val = emalloc(2 * sizeof(*f->val));
 		errno = 0;
 		f->val[0] = strtol(field, &e1, 10);
@@ -330,9 +332,9 @@ parsefield(const char *field, long low, long high, struct field *f)
 			break;
 		if (f->val[1] < low || f->val[1] > high)
 			break;
-		f->type = range;
+		f->type = RANGE;
 		break;
-	case step:
+	case STEP:
 		if (strncmp(field, "*/", 2) != 0)
 			return -1;
 		f->val = emalloc(sizeof(*f->val));
@@ -341,12 +343,12 @@ parsefield(const char *field, long low, long high, struct field *f)
 			break;
 		if (f->val[0] == 0 || f->val[0] < low || f->val[0] > high)
 			break;
-		f->type = step;
+		f->type = STEP;
 		break;
 	default:
 		return -1;
 	}
-	if (f->type == error) {
+	if (f->type == ERROR) {
 		free(f->val);
 		return -1;
 	}
@@ -354,7 +356,9 @@ parsefield(const char *field, long low, long high, struct field *f)
 	return 0;
 }
 
-void freecte(struct ctabentry *cte, int nfields) {
+static void
+freecte(struct ctabentry *cte, int nfields)
+{
 	switch (nfields) {
 	case 6:
 		free(cte->cmd);
