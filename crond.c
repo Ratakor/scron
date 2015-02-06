@@ -21,16 +21,14 @@
 
 #define LEN(x) (sizeof (x) / sizeof *(x))
 
-enum fieldtype {
-	ERROR,
-	WILDCARD,
-	NUMBER,
-	RANGE,
-	STEP
-};
-
 struct field {
-	enum fieldtype type;
+	enum {
+		ERROR,
+		WILDCARD,
+		NUMBER,
+		RANGE,
+		STEP
+	} type;
 	long *val;
 };
 
@@ -269,46 +267,34 @@ matchentry(struct ctabentry *cte, struct tm *tm)
 	return 1;
 }
 
-static enum fieldtype
-getfieldtype(const char *field)
-{
-	const char *p;
-
-	if (strcmp(field, "*") == 0)
-		return WILDCARD;
-
-	p = field;
-	while (isdigit(*p))
-		p++;
-	if (*p == '\0')
-		return NUMBER;
-
-	p = field;
-	while (isdigit(*p) || *p == '-')
-		p++;
-	if (*p == '\0')
-		return RANGE;
-
-	p = field;
-	while (isdigit(*p) || *p == '*' || *p == '/')
-		p++;
-	if (*p == '\0')
-		return STEP;
-
-	return ERROR;
-}
-
 static int
 parsefield(const char *field, long low, long high, struct field *f)
 {
 	char *e1, *e2;
+	const char *p;
+
+	p = field;
+	while (isdigit(*p))
+		p++;
 
 	f->type = ERROR;
-	switch (getfieldtype(field)) {
-	case WILDCARD:
-		f->type = WILDCARD;
+
+	switch (*p) {
+	case '*':
+		if (p[1] == '\0') {
+			f->type = WILDCARD;
+		} else if (p[1] == '/') {
+			f->val = emalloc(sizeof(*f->val));
+			errno = 0;
+			f->val[0] = strtol(field + 2, &e1, 10);
+			if (e1[0] != '\0' || errno != 0)
+				break;
+			if (f->val[0] == 0 || f->val[0] < low || f->val[0] > high)
+				break;
+			f->type = STEP;
+		}
 		break;
-	case NUMBER:
+	case '\0':
 		f->val = emalloc(sizeof(*f->val));
 		errno = 0;
 		f->val[0] = strtol(field, &e1, 10);
@@ -318,7 +304,7 @@ parsefield(const char *field, long low, long high, struct field *f)
 			break;
 		f->type = NUMBER;
 		break;
-	case RANGE:
+	case '-':
 		f->val = emalloc(2 * sizeof(*f->val));
 		errno = 0;
 		f->val[0] = strtol(field, &e1, 10);
@@ -334,20 +320,10 @@ parsefield(const char *field, long low, long high, struct field *f)
 			break;
 		f->type = RANGE;
 		break;
-	case STEP:
-		if (strncmp(field, "*/", 2) != 0)
-			return -1;
-		f->val = emalloc(sizeof(*f->val));
-		f->val[0] = strtol(field + 2, &e1, 10);
-		if (e1[0] != '\0' || errno != 0)
-			break;
-		if (f->val[0] == 0 || f->val[0] < low || f->val[0] > high)
-			break;
-		f->type = STEP;
-		break;
 	default:
 		return -1;
 	}
+
 	if (f->type == ERROR) {
 		free(f->val);
 		return -1;
