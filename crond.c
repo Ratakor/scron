@@ -334,19 +334,19 @@ loadentries(void)
 	int r = 0, y;
 	size_t size = 0;
 	ssize_t len;
-	int i, nflim;
-	struct field *f;
 	struct fieldlimits {
 		char *name;
 		long min;
 		long max;
+		struct field *f;
 	} flim[] = {
-		{ "min", 0, 59 },
-		{ "hour", 0, 23 },
-		{ "mday", 1, 31 },
-		{ "mon", 1, 12 },
-		{ "wday", 0, 6 }
+		{ "min",  0, 59, NULL },
+		{ "hour", 0, 23, NULL },
+		{ "mday", 1, 31, NULL },
+		{ "mon",  1, 12, NULL },
+		{ "wday", 0, 6,  NULL }
 	};
+	size_t x;
 
 	if ((fp = fopen(config, "r")) == NULL) {
 		logerr("error: can't open %s: %s\n", config, strerror(errno));
@@ -357,19 +357,23 @@ loadentries(void)
 		p = line;
 		if (line[0] == '#' || line[0] == '\n' || line[0] == '\0')
 			continue;
+		line[len - 1] = '\0';
 
 		cte = emalloc(sizeof(*cte));
+		flim[0].f = &cte->min;
+		flim[1].f = &cte->hour;
+		flim[2].f = &cte->mday;
+		flim[3].f = &cte->mon;
+		flim[4].f = &cte->wday;
 
-		f = &cte->min;
-		nflim = LEN(flim);
-		for (i = 0; i < nflim; i++) {
+		for (x = 0; x < LEN(flim); x++) {
 			do
 				col = strsep(&p, "\t ");
-			while (col[0] == '\0');
+			while (col && col[0] == '\0');
 
-			if (!col || parsefield(col, flim[i].min, flim[i].max, f++) < 0) {
+			if (!col || parsefield(col, flim[x].min, flim[x].max, flim[x].f) < 0) {
 				logerr("error: failed to parse `%s' field on line %d\n",
-						flim[i].name, y + 1);
+						flim[x].name, y + 1);
 				free(cte);
 				r = -1;
 				break;
@@ -379,7 +383,7 @@ loadentries(void)
 		if (r == -1)
 			break;
 
-		col = strsep(&p, "\n");
+		col = p;
 		if (!col) {
 			logerr("error: missing `cmd' field on line %d\n",
 			       y + 1);
