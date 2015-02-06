@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <syslog.h>
 #include <time.h>
@@ -20,12 +21,17 @@
 
 #define LEN(x) (sizeof (x) / sizeof *(x))
 
+enum fieldtype {
+	error,
+	wildcard,
+	number,
+	range,
+	step
+};
+
 struct field {
-	/* [low, high] */
-	long low;
-	long high;
-	/* for every `div' units */
-	long div;
+	enum fieldtype type;
+	long *val;
 };
 
 struct ctabentry {
@@ -232,23 +238,29 @@ matchentry(struct ctabentry *cte, struct tm *tm)
 	size_t i;
 
 	for (i = 0; i < LEN(matchtbl); i++) {
-		if (matchtbl[i].f->high == -1) {
-			if (matchtbl[i].f->low == -1) {
-				continue;
-			} else if (matchtbl[i].f->div > 0) {
-				if (matchtbl[i].tm > 0) {
-					if (matchtbl[i].tm % matchtbl[i].f->div == 0)
-						continue;
-				} else {
-					if (matchtbl[i].len % matchtbl[i].f->div == 0)
-						continue;
-				}
-			} else if (matchtbl[i].f->low == matchtbl[i].tm) {
-				continue;
-			}
-		} else if (matchtbl[i].f->low <= matchtbl[i].tm &&
-				matchtbl[i].f->high >= matchtbl[i].tm) {
+		switch (matchtbl[i].f->type) {
+		case wildcard:
 			continue;
+		case number:
+			if (matchtbl[i].f->val[0] == matchtbl[i].tm)
+				continue;
+			break;
+		case range:
+			if (matchtbl[i].f->val[0] <= matchtbl[i].tm)
+				if (matchtbl[i].f->val[1] >= matchtbl[i].tm)
+					continue;
+			break;
+		case step:
+			if (matchtbl[i].tm > 0) {
+				if (matchtbl[i].tm % matchtbl[i].f->val[0] == 0)
+					continue;
+			} else {
+				if (matchtbl[i].len % matchtbl[i].f->val[0] == 0)
+					continue;
+			}
+			break;
+		default:
+			break;
 		}
 		break;
 	}
@@ -257,59 +269,107 @@ matchentry(struct ctabentry *cte, struct tm *tm)
 	return 1;
 }
 
+enum fieldtype getfieldtype(const char *field) {
+	const char *p;
+
+	if (strcmp(field, "*") == 0)
+		return wildcard;
+
+	p = field;
+	while (isdigit(*p))
+		p++;
+	if (*p == '\0')
+		return number;
+
+	p = field;
+	while (isdigit(*p) || *p == '-')
+		p++;
+	if (*p == '\0')
+		return range;
+
+	p = field;
+	while (isdigit(*p) || *p == '*' || *p == '/')
+		p++;
+	if (*p == '\0')
+		return step;
+
+	return error;
+}
+
 static int
 parsefield(const char *field, long low, long high, struct field *f)
 {
-	long min, max, div;
 	char *e1, *e2;
 
-	if (strcmp(field, "*") == 0) {
-		f->low = -1;
-		f->high = -1;
-		return 0;
-	}
-
-	div = -1;
-	max = -1;
-	min = strtol(field, &e1, 10);
-
-	switch (e1[0]) {
-	case '-':
-		e1++;
-		errno = 0;
-		max = strtol(e1, &e2, 10);
-		if (e2[0] != '\0' || errno != 0)
-			return -1;
+	f->type = error;
+	switch (getfieldtype(field)) {
+	case wildcard:
+		f->type = wildcard;
 		break;
-	case '*':
-		e1++;
-		if (e1[0] != '/')
-			return -1;
-		e1++;
+	case number:
+		f->val = emalloc(sizeof(*f->val));
 		errno = 0;
-		div = strtol(e1, &e2, 10);
-		if (e2[0] != '\0' || errno != 0)
-			return -1;
+		f->val[0] = strtol(field, &e1, 10);
+		if (e1[0] != '\0' || errno != 0)
+			break;
+		if (f->val[0] < low || f->val[0] > high)
+			break;
+		f->type = number;
 		break;
-	case '\0':
+	case range:
+		f->val = emalloc(2 * sizeof(*f->val));
+		errno = 0;
+		f->val[0] = strtol(field, &e1, 10);
+		if (e1[0] != '-' || errno != 0)
+			break;
+		if (f->val[0] < low || f->val[0] > high)
+			break;
+		errno = 0;
+		f->val[1] = strtol(e1 + 1, &e2, 10);
+		if (e2[0] != '\0' || errno != 0)
+			break;
+		if (f->val[1] < low || f->val[1] > high)
+			break;
+		f->type = range;
+		break;
+	case step:
+		if (strncmp(field, "*/", 2) != 0)
+			return -1;
+		f->val = emalloc(sizeof(*f->val));
+		f->val[0] = strtol(field + 2, &e1, 10);
+		if (e1[0] != '\0' || errno != 0)
+			break;
+		if (f->val[0] == 0 || f->val[0] < low || f->val[0] > high)
+			break;
+		f->type = step;
 		break;
 	default:
 		return -1;
 	}
-
-	if (min < low || min > high)
+	if (f->type == error) {
+		free(f->val);
 		return -1;
-	if (max != -1)
-		if (max < low || max > high)
-			return -1;
-	if (div != -1)
-		if (div < low || div > high)
-			return -1;
+	}
 
-	f->low = min;
-	f->high = max;
-	f->div = div;
 	return 0;
+}
+
+void freecte(struct ctabentry *cte, int nfields) {
+	switch (nfields) {
+	case 6:
+		free(cte->cmd);
+	case 5:
+		free(cte->wday.val);
+	case 4:
+		free(cte->mon.val);
+	case 3:
+		free(cte->mday.val);
+	case 2:
+		free(cte->hour.val);
+	case 1:
+		free(cte->min.val);
+	}
+	free(cte);
 }
 
 static void
@@ -320,8 +380,7 @@ unloadentries(void)
 	for (cte = TAILQ_FIRST(&ctabhead); cte; cte = tmp) {
 		tmp = TAILQ_NEXT(cte, entry);
 		TAILQ_REMOVE(&ctabhead, cte, entry);
-		free(cte->cmd);
-		free(cte);
+		freecte(cte, 6);
 	}
 }
 
@@ -374,7 +433,7 @@ loadentries(void)
 			if (!col || parsefield(col, flim[x].min, flim[x].max, flim[x].f) < 0) {
 				logerr("error: failed to parse `%s' field on line %d\n",
 						flim[x].name, y + 1);
-				free(cte);
+				freecte(cte, x);
 				r = -1;
 				break;
 			}
@@ -387,7 +446,7 @@ loadentries(void)
 		if (!col) {
 			logerr("error: missing `cmd' field on line %d\n",
 			       y + 1);
-			free(cte);
+			freecte(cte, 6);
 			r = -1;
 			break;
 		}
