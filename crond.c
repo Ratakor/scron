@@ -27,9 +27,11 @@ struct field {
 		WILDCARD,
 		NUMBER,
 		RANGE,
-		STEP
+		REPEAT,
+		LIST
 	} type;
 	long *val;
+	int len;
 };
 
 struct ctabentry {
@@ -234,6 +236,7 @@ matchentry(struct ctabentry *cte, struct tm *tm)
 		{ .f = &cte->wday, .tm = tm->tm_wday, .len = 7  },
 	};
 	size_t i;
+	int j;
 
 	for (i = 0; i < LEN(matchtbl); i++) {
 		switch (matchtbl[i].f->type) {
@@ -248,7 +251,7 @@ matchentry(struct ctabentry *cte, struct tm *tm)
 				if (matchtbl[i].f->val[1] >= matchtbl[i].tm)
 					continue;
 			break;
-		case STEP:
+		case REPEAT:
 			if (matchtbl[i].tm > 0) {
 				if (matchtbl[i].tm % matchtbl[i].f->val[0] == 0)
 					continue;
@@ -256,6 +259,13 @@ matchentry(struct ctabentry *cte, struct tm *tm)
 				if (matchtbl[i].len % matchtbl[i].f->val[0] == 0)
 					continue;
 			}
+			break;
+		case LIST:
+			for (j = 0; j < matchtbl[i].f->len; j++)
+				if (matchtbl[i].f->val[j] == matchtbl[i].tm)
+					break;
+			if (j < matchtbl[i].f->len)
+				continue;
 			break;
 		default:
 			break;
@@ -270,6 +280,7 @@ matchentry(struct ctabentry *cte, struct tm *tm)
 static int
 parsefield(const char *field, long low, long high, struct field *f)
 {
+	int i;
 	char *e1, *e2;
 	const char *p;
 
@@ -281,44 +292,79 @@ parsefield(const char *field, long low, long high, struct field *f)
 
 	switch (*p) {
 	case '*':
-		if (p[1] == '\0') {
+		if (p[1] == '\0')
 			f->type = WILDCARD;
-		} else if (p[1] == '/') {
+
+		if (p[1] == '/') {
 			f->val = emalloc(sizeof(*f->val));
+
 			errno = 0;
 			f->val[0] = strtol(field + 2, &e1, 10);
 			if (e1[0] != '\0' || errno != 0)
 				break;
 			if (f->val[0] == 0 || f->val[0] < low || f->val[0] > high)
 				break;
-			f->type = STEP;
+
+			f->type = REPEAT;
 		}
 		break;
 	case '\0':
 		f->val = emalloc(sizeof(*f->val));
+
 		errno = 0;
 		f->val[0] = strtol(field, &e1, 10);
 		if (e1[0] != '\0' || errno != 0)
 			break;
 		if (f->val[0] < low || f->val[0] > high)
 			break;
+
 		f->type = NUMBER;
 		break;
 	case '-':
 		f->val = emalloc(2 * sizeof(*f->val));
+
 		errno = 0;
 		f->val[0] = strtol(field, &e1, 10);
 		if (e1[0] != '-' || errno != 0)
 			break;
 		if (f->val[0] < low || f->val[0] > high)
 			break;
+
 		errno = 0;
 		f->val[1] = strtol(e1 + 1, &e2, 10);
 		if (e2[0] != '\0' || errno != 0)
 			break;
 		if (f->val[1] < low || f->val[1] > high)
 			break;
+
 		f->type = RANGE;
+		break;
+	case ',':
+		i = 1;
+		while (isdigit(*p) || *p == ',') {
+			if (*p == ',')
+				i++;
+			p++;
+		}
+		f->val = emalloc(i * sizeof(*f->val));
+		f->len = i;
+
+		errno = 0;
+		f->val[0] = strtol(field, &e1, 10);
+		if (f->val[0] < low || f->val[0] > high)
+			break;
+
+		for (i = 1; *e1 == ',' && errno == 0; i++) {
+			errno = 0;
+			f->val[i] = strtol(e1 + 1, &e2, 10);
+			if (f->val[i] < low || f->val[i] > high)
+				errno = -1;
+			e1 = e2;
+		}
+		if (e1[0] != '\0' || errno != 0)
+			break;
+
+		f->type = LIST;
 		break;
 	default:
 		return -1;
