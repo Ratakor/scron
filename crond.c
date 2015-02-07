@@ -437,7 +437,6 @@ loadentries(void)
 		p = line;
 		if (line[0] == '#' || line[0] == '\n' || line[0] == '\0')
 			continue;
-		line[len - 1] = '\0';
 
 		cte = emalloc(sizeof(*cte));
 		flim[0].f = &cte->min;
@@ -448,7 +447,7 @@ loadentries(void)
 
 		for (x = 0; x < LEN(flim); x++) {
 			do
-				col = strsep(&p, "\t ");
+				col = strsep(&p, "\t\n ");
 			while (col && col[0] == '\0');
 
 			if (!col || parsefield(col, flim[x].min, flim[x].max, flim[x].f) < 0) {
@@ -463,11 +462,14 @@ loadentries(void)
 		if (r == -1)
 			break;
 
-		col = p;
-		if (!col) {
+		col = strsep(&p, "\n");
+		if (col)
+			while (col[0] == '\t' || col[0] == ' ')
+				col++;
+		if (!col || col[0] == '\0') {
 			logerr("error: missing `cmd' field on line %d\n",
 			       y + 1);
-			freecte(cte, 6);
+			freecte(cte, 5);
 			r = -1;
 			break;
 		}
