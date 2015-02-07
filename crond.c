@@ -292,17 +292,17 @@ parsefield(const char *field, long low, long high, struct field *f)
 
 	switch (*p) {
 	case '*':
-		if (p[1] == '\0')
+		if (strcmp(field, "*") == 0) {
+			f->val = NULL;
+			f->len = 0;
 			f->type = WILDCARD;
-
-		if (p[1] == '/') {
+		} else if (strncmp(field, "*/", 2) == 0) {
 			f->val = emalloc(sizeof(*f->val));
+			f->len = 1;
 
 			errno = 0;
 			f->val[0] = strtol(field + 2, &e1, 10);
-			if (e1[0] != '\0' || errno != 0)
-				break;
-			if (f->val[0] == 0 || f->val[0] < low || f->val[0] > high)
+			if (e1[0] != '\0' || errno != 0 || f->val[0] == 0)
 				break;
 
 			f->type = REPEAT;
@@ -310,42 +310,35 @@ parsefield(const char *field, long low, long high, struct field *f)
 		break;
 	case '\0':
 		f->val = emalloc(sizeof(*f->val));
+		f->len = 1;
 
 		errno = 0;
 		f->val[0] = strtol(field, &e1, 10);
 		if (e1[0] != '\0' || errno != 0)
-			break;
-		if (f->val[0] < low || f->val[0] > high)
 			break;
 
 		f->type = NUMBER;
 		break;
 	case '-':
 		f->val = emalloc(2 * sizeof(*f->val));
+		f->len = 2;
 
 		errno = 0;
 		f->val[0] = strtol(field, &e1, 10);
 		if (e1[0] != '-' || errno != 0)
-			break;
-		if (f->val[0] < low || f->val[0] > high)
 			break;
 
 		errno = 0;
 		f->val[1] = strtol(e1 + 1, &e2, 10);
 		if (e2[0] != '\0' || errno != 0)
 			break;
-		if (f->val[1] < low || f->val[1] > high)
-			break;
 
 		f->type = RANGE;
 		break;
 	case ',':
-		i = 1;
-		while (isdigit(*p) || *p == ',') {
+		for (i = 1; isdigit(*p) || *p == ','; p++)
 			if (*p == ',')
 				i++;
-			p++;
-		}
 		f->val = emalloc(i * sizeof(*f->val));
 		f->len = i;
 
@@ -357,8 +350,6 @@ parsefield(const char *field, long low, long high, struct field *f)
 		for (i = 1; *e1 == ',' && errno == 0; i++) {
 			errno = 0;
 			f->val[i] = strtol(e1 + 1, &e2, 10);
-			if (f->val[i] < low || f->val[i] > high)
-				errno = -1;
 			e1 = e2;
 		}
 		if (e1[0] != '\0' || errno != 0)
@@ -369,6 +360,10 @@ parsefield(const char *field, long low, long high, struct field *f)
 	default:
 		return -1;
 	}
+
+	for (i = 0; i < f->len; i++)
+		if (f->val[i] < low || f->val[i] > high)
+			f->type = ERROR;
 
 	if (f->type == ERROR) {
 		free(f->val);
