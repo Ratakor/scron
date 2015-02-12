@@ -17,7 +17,7 @@
 #include "arg.h"
 #include "queue.h"
 
-#define VERSION "0.3.2"
+#define VERSION "0.4"
 
 #define LEN(x) (sizeof (x) / sizeof *(x))
 
@@ -514,7 +514,7 @@ sighandler(int sig)
 static void
 usage(void)
 {
-	fprintf(stderr, VERSION " (c) 2014\n");
+	fprintf(stderr, VERSION " (c) 2014-2015\n");
 	fprintf(stderr, "usage: %s [-f file] [-n]\n", argv0);
 	fprintf(stderr, "  -f	config file\n");
 	fprintf(stderr, "  -n	do not daemonize\n");
