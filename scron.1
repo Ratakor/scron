@@ -1,4 +1,4 @@
-.Dd Feb 6, 2015
+.Dd Apr 12, 2023
 .Dt SCRON 1
 .Os
 .Sh NAME
@@ -18,12 +18,15 @@ schedules commands to be run at specified dates and times.
 Use the specified
 .Ar file
 instead of the default
-.Ar /etc/crontab .
+.Ar crontab
+file.
 .It Fl n
 Do not daemonize.
 .El
 .Sh CONFIGURATION
 Configuration is done by editing the crontab file.
+.Nm
+looks for crontab in $XDG_CONFIG_HOME, $HOME/.config and /etc
 
 Columns:
  minute, hour, day of month, month, day of week, command

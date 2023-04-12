@@ -56,7 +56,7 @@ static sig_atomic_t reload;
 static sig_atomic_t quit;
 static TAILQ_HEAD(, ctabentry) ctabhead = TAILQ_HEAD_INITIALIZER(ctabhead);
 static TAILQ_HEAD(, jobentry) jobhead = TAILQ_HEAD_INITIALIZER(jobhead);
-static char *config = "/etc/crontab";
+static char *cfg;
 static char *pidfile = "/var/run/crond.pid";
 static int nflag;
 
@@ -393,6 +393,25 @@ freecte(struct ctabentry *cte, int nfields)
 	free(cte);
 }
 
+static FILE *
+getcfg(void)
+{
+	FILE *fp;
+
+	if (cfg)
+		return fopen(cfg, "r");
+
+	cfg = strncat(getenv("XDG_CONFIG_HOME"), "/crontab", 8);
+	if ((fp = fopen(cfg, "r")) != NULL)
+		return fp;
+
+	cfg = strncat(getenv("HOME"), "/.config/crontab", 16);
+	if ((fp = fopen(cfg, "r")) != NULL)
+		return fp;
+
+	return fopen("/etc/crontab", "r");
+}
+
 static void
 unloadentries(void)
 {
@@ -428,8 +447,8 @@ loadentries(void)
 	};
 	size_t x;
 
-	if ((fp = fopen(config, "r")) == NULL) {
-		logerr("error: can't open %s: %s\n", config, strerror(errno));
+	if ((fp = getcfg()) == NULL) {
+		logerr("error: can't open %s: %s\n", cfg, strerror(errno));
 		return -1;
 	}
 
@@ -514,7 +533,7 @@ sighandler(int sig)
 static void
 usage(void)
 {
-	fprintf(stderr, VERSION " (c) 2014-2015\n");
+	fprintf(stderr, VERSION " (c) 2014-2023\n");
 	fprintf(stderr, "usage: %s [-f file] [-n]\n", argv0);
 	fprintf(stderr, "  -f	config file\n");
 	fprintf(stderr, "  -n	do not daemonize\n");
@@ -535,7 +554,7 @@ main(int argc, char *argv[])
 		nflag = 1;
 		break;
 	case 'f':
-		config = EARGF(usage());
+		cfg = EARGF(usage());
 		break;
 	default:
 		usage();
