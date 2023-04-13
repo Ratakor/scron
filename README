@@ -10,7 +10,6 @@ Features
 * Run job as different user: 'su -c 'command' user'.
 * Log to stdout or syslog.
 * No mail support.
-* config file $XDG_CONFIG_HOME/crontab > $HOME/.config/crontab > /etc/crontab
 
 Configuration
 -------------

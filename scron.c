@@ -56,8 +56,8 @@ static sig_atomic_t reload;
 static sig_atomic_t quit;
 static TAILQ_HEAD(, ctabentry) ctabhead = TAILQ_HEAD_INITIALIZER(ctabhead);
 static TAILQ_HEAD(, jobentry) jobhead = TAILQ_HEAD_INITIALIZER(jobhead);
-static char *cfg;
-static char *pidfile = "/var/run/crond.pid";
+static char *cfg = "/etc/crontab";
+static char *pidfile = "/var/run/scron.pid";
 static int nflag;
 
 static void
@@ -393,25 +393,6 @@ freecte(struct ctabentry *cte, int nfields)
 	free(cte);
 }
 
-static FILE *
-getcfg(void)
-{
-	FILE *fp;
-
-	if (cfg)
-		return fopen(cfg, "r");
-
-	cfg = strncat(getenv("XDG_CONFIG_HOME"), "/crontab", 8);
-	if ((fp = fopen(cfg, "r")) != NULL)
-		return fp;
-
-	cfg = strncat(getenv("HOME"), "/.config/crontab", 16);
-	if ((fp = fopen(cfg, "r")) != NULL)
-		return fp;
-
-	return fopen("/etc/crontab", "r");
-}
-
 static void
 unloadentries(void)
 {
@@ -447,7 +428,7 @@ loadentries(void)
 	};
 	size_t x;
 
-	if ((fp = getcfg()) == NULL) {
+	if ((fp = fopen(cfg, "r")) == NULL) {
 		logerr("error: can't open %s: %s\n", cfg, strerror(errno));
 		return -1;
 	}
